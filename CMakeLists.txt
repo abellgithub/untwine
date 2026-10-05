@@ -30,6 +30,7 @@ file(GLOB SRCS
     prep/*.cpp
     epf/*.cpp
     bu/*.cpp
+    bu/parquet/*.cpp
 )
 
 # MINGW must come before WIN32 test

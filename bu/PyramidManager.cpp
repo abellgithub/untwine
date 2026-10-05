@@ -29,7 +29,7 @@ namespace bu
 {
 
 PyramidManager::PyramidManager(const BaseInfo& b) : m_b(b), m_pool(m_b.opts.numThreads),
-    m_totalPoints(0), m_copc(m_b)
+    m_totalPoints(0)
 {}
 
 PyramidManager::~PyramidManager()
@@ -64,9 +64,9 @@ void PyramidManager::queueWithError(const OctantInfo& o, const std::string& erro
     m_cv.notify_one();
 }
 
-
 void PyramidManager::run()
 {
+    prepare();
     while (true)
     {
         OctantInfo o;
@@ -91,14 +91,7 @@ void PyramidManager::run()
             break;
         process(o);
     }
-
-    createHierarchy();
-
-    m_copc.writeChunkTable();
-    m_copc.writeHierarchy(m_childCounts);
-    m_copc.updateHeader(m_stats);
-    // The header is last because we don't have the evlr position until the end.
-    m_copc.writeHeader();
+    finish();
 }
 
 // Take the item off the queue and stick it on the complete list. If we have all 8 octants,
@@ -121,14 +114,7 @@ void PyramidManager::process(const OctantInfo& o)
         m_progress->writeIncrement("Bypass sample for " + vi.key().toString());
     }
     else
-    {
-        m_pool.add([vi, this]()
-        {
-            Processor p(*this, vi, m_b);
-            p.run();
-            m_progress->writeIncrement("Sample complete for " + vi.key().toString());
-        });
-    }
+        addProcessor(vi);
 }
 
 
@@ -158,16 +144,6 @@ OctantInfo PyramidManager::removeComplete(const VoxelKey& k)
         m_completes.erase(oi);
     }
     return o;
-}
-
-// Called when a processor wants to write a chunk in single-file mode. Returns the location
-// where the chunk should be written.
-uint64_t PyramidManager::newChunk(const VoxelKey& key, uint32_t size, uint32_t count)
-{
-    static std::mutex m;
-
-    std::unique_lock<std::mutex> lock(m);
-    return m_copc.newChunk(key, size, count);
 }
 
 void PyramidManager::logOctant(const VoxelKey& k, int cnt, const IndexedStats& istats)

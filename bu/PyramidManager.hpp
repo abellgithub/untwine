@@ -48,9 +48,8 @@ public:
     uint64_t totalPoints() const
         { return m_totalPoints; }
     Stats *stats(pdal::Dimension::Id id);
-    uint64_t newChunk(const VoxelKey& key, uint32_t size, uint32_t count);
 
-private:
+protected:
     const int LevelBreak = 4;
     const int MinHierarchySize = 50;
     const BaseInfo& m_b;
@@ -62,11 +61,17 @@ private:
     uint64_t m_totalPoints;
     StatsMap m_stats;
     ProgressWriter *m_progress {nullptr};
-    CopcSupport m_copc;
     std::string m_error;
     //
     std::unordered_map<VoxelKey, int> m_written;
     std::unordered_map<VoxelKey, int> m_childCounts;
+
+private:
+    virtual void finish()
+    {}
+    virtual void prepare()
+    {}
+    virtual addProcessor(const VoxelInfo& vi) = 0;
 
     void getInputFiles();
     void process(const OctantInfo& o);
@@ -74,7 +79,6 @@ private:
     bool childrenComplete(const VoxelKey& parent);
     OctantInfo removeComplete(const VoxelKey& k);
     size_t extraByteSize();
-    //
     void createHierarchy();
 };
 
