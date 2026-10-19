@@ -15,6 +15,8 @@ public:
     {
         if (_typeLength == (std::numeric_limits<uint32_t>::max)())
             _typeLength = ParquetTypeSize[(int)_elementType];
+        _fetchFunc = [this](void *dst, void *src)
+            { std::memcpy(dst, src, _typeLength); };
     }
     virtual ~SchemaElt()
     {}
@@ -36,6 +38,11 @@ public:
     virtual bool isRoot() const // Need a vtable.
     { return false; }
 
+    using FetchFunc = std::function<void(void *dst, void *src)>;
+    void setFetch(const FetchFunc& func)
+    { _fetchFunc = func; }
+    const FetchFunc& fetch() const
+    { return _fetchFunc; }
 
 private:
     std::string _name;
@@ -43,6 +50,7 @@ private:
     uint32_t _typeLength; // Same as ParquetTypeSize unless FIXED_LEN_BYTE_ARRAY.
     std::size_t _offset;
     std::size_t _numChildren;
+    FetchFunc _fetchFunc;
 };
 
 class RootSchemaElt : public SchemaElt

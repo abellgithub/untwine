@@ -13,6 +13,7 @@
 
 #pragma once
 
+#include <memory>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -47,7 +48,7 @@ private:
     size_t queueWork();
 
     BaseInfo m_b;
-    PyramidManager m_manager;
+    std::unique_ptr<PyramidManager> m_manager;
     std::unordered_map<VoxelKey, FileInfo> m_allFiles;
 };
 

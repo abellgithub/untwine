@@ -51,12 +51,24 @@ public:
         m_pos = m_start + used;
     }
 
+    /**
     void add(void *v, size_t size)
     {
         if (m_pos + size > m_end)
             expand();
+
         std::memcpy(m_pos, v, size);
         m_pos += size;
+    }
+    **/
+    char *getPos(size_t size)
+    {
+        assert(size < DefaultSize);
+        if (m_pos + size > m_end)
+            expand();
+        char *pos = m_pos;
+        m_pos += size;
+        return pos;
     }
 
     // Right now we just copy the data to the destination buffer.

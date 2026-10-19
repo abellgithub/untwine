@@ -17,9 +17,12 @@
 #include <unordered_map>
 #include <vector>
 
+/**
 #include "CopcSupport.hpp"
 #include "OctantInfo.hpp"
+**/
 #include "Stats.hpp"
+#include "VoxelInfo.hpp"
 #include "../untwine/ThreadPool.hpp"
 
 namespace untwine
@@ -38,7 +41,7 @@ class PyramidManager
     using Entries = std::vector<std::pair<VoxelKey, int>>;
 public:
     PyramidManager(const BaseInfo& b);
-    ~PyramidManager();
+    virtual ~PyramidManager();
 
     void setProgress(ProgressWriter *progress);
     void queue(const OctantInfo& o);
@@ -48,30 +51,33 @@ public:
     uint64_t totalPoints() const
         { return m_totalPoints; }
     Stats *stats(pdal::Dimension::Id id);
+    virtual uint64_t newChunk(const VoxelKey& key, uint32_t size, uint32_t count) = 0;
 
 protected:
+    const BaseInfo& m_b;
+    ThreadPool m_pool;
+    StatsMap m_stats;
+    ProgressWriter *m_progress {nullptr};
+    std::unordered_map<VoxelKey, int> m_childCounts;
+
+    void createHierarchy();
+
+private:
     const int LevelBreak = 4;
     const int MinHierarchySize = 50;
-    const BaseInfo& m_b;
     std::mutex m_mutex;
     std::condition_variable m_cv;
     std::unordered_map<VoxelKey, OctantInfo> m_completes;
     std::queue<OctantInfo> m_queue;
-    ThreadPool m_pool;
     uint64_t m_totalPoints;
-    StatsMap m_stats;
-    ProgressWriter *m_progress {nullptr};
     std::string m_error;
-    //
     std::unordered_map<VoxelKey, int> m_written;
-    std::unordered_map<VoxelKey, int> m_childCounts;
 
-private:
     virtual void finish()
     {}
     virtual void prepare()
     {}
-    virtual addProcessor(const VoxelInfo& vi) = 0;
+    virtual void addProcessor(const VoxelInfo& vi) = 0;
 
     void getInputFiles();
     void process(const OctantInfo& o);
@@ -79,7 +85,6 @@ private:
     bool childrenComplete(const VoxelKey& parent);
     OctantInfo removeComplete(const VoxelKey& k);
     size_t extraByteSize();
-    void createHierarchy();
 };
 
 } // namespace bu

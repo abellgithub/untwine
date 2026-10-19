@@ -1,4 +1,6 @@
 
+#include <stringconv.hpp>
+
 #include "ParquetSupport.hpp"
 
 namespace untwine
@@ -6,7 +8,8 @@ namespace untwine
 namespace bu
 {
 
-ParquetSupport::ParquetSupport(const BaseInfo& b) : m_b(b)
+//ParquetSupport::ParquetSupport(const BaseInfo& b) : m_b(b)
+ParquetSupport::ParquetSupport(const BaseInfo& b)
 {
 /**
     if (b.opts.a_srs.size())

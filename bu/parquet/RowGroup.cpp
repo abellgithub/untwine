@@ -1,3 +1,7 @@
+#include <fstream>
+
+#include "../../untwine/FatalError.hpp"
+
 #include "RowGroup.hpp"
 #include "Page.hpp"
 #include "Parquet.hpp"
@@ -30,15 +34,30 @@ void RowGroup::add(void *v)
 
 void RowGroup::done()
 {
+    // This doesn't appear to include the page headers, but check this.
     m_totalByteSize = m_numRows * m_file.schema().rowLength();
 std::cerr << "Total byte size = " << m_totalByteSize << "!\n";
 
     for (ColumnChunk& col : m_columnChunks)
     {
-        col.done(m_file);
+        col.done();
         m_compressedTotalSize += col.compressedTotalSize();
     }
+}
+
+void RowGroup::write(Parquet& file, int64_t position)
+{
+    std::ofstream out(file.name(), Parquet::FileBits);
+    out.seekp(std::ofstream::pos_type(position));
+    for (ColumnChunk& col : m_columnChunks)
+        col.write(out);
+    out.close();
+
+    if (!out)
+        throw untwine::FatalError("Failure writing to file " + file.name().string() +
+            " at position " + std::to_string(position) + ".");
 
     m_file.addRowGroup(std::move(*this));
     m_numRows = -1;
 }
+

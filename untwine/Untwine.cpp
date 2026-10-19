@@ -40,6 +40,7 @@ void addArgs(pdal::ProgramArgs& programArgs, Options& options, pdal::Arg * &temp
     programArgs.add("output_dir,o", "Output filename", options.outputName).setPositional();
     programArgs.addSynonym("output_dir", "output_file");
     programArgs.add("files,i", "Input files/directory", options.inputFiles).setPositional();
+    programArgs.add("pcopc", "Set to true to write PCOPC instead of COPC", options.pcopc);
     programArgs.add("single_file,s", "Deprecated and ingored.", options.dummy);
     tempArg = &(programArgs.add("temp_dir", "Temp directory", options.tempDir));
     programArgs.add("cube", "Make a cube, rather than a rectangular solid", options.doCube, true);

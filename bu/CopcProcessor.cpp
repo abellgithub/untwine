@@ -11,6 +11,16 @@
  ****************************************************************************/
 
 #include "CopcProcessor.hpp"
+#include "PyramidManager.hpp"
+
+#include <pdal/io/BufferReader.hpp>
+#include <pdal/filters/SortFilter.hpp>
+
+#include <lazperf/lazperf.hpp>
+#include <lazperf/writers.hpp>
+#include <lazperf/readers.hpp>
+
+#include <stringconv.hpp>  // untwine/os
 
 namespace untwine
 {
@@ -36,6 +46,32 @@ void sortChunk(pdal::PointViewPtr view)
 }
 
 } // namespace
+
+CopcProcessor::CopcProcessor(PyramidManager& manager, const BaseInfo& b, const VoxelInfo& vi) :
+    Processor(manager, b, vi)
+{
+        std::cerr << "Created copc processor!\n";
+    }
+
+void CopcProcessor::flushCompressed(pdal::PointViewPtr view, const OctantInfo& oi,
+    IndexedStats& stats)
+{
+    // For single file output we need the stats for
+    if (m_b.opts.stats)
+    {
+        for (pdal::PointId id = 0; id < view->size(); ++id)
+        {
+            for (auto& sp : stats)
+            {
+                pdal::Dimension::Id dim = sp.first;
+                Stats& s = sp.second;
+                s.insert(view->getFieldAs<double>(dim, id));
+            }
+        }
+    }
+
+    createChunk(oi.key(), view);
+}
 
 void CopcProcessor::fillPointBuf(pdal::PointRef& point, std::vector<char>& buf,
     pdal::Dimension::Id bitsDim)
@@ -114,13 +150,9 @@ void CopcProcessor::fillPointBuf(pdal::PointRef& point, std::vector<char>& buf,
     }
 }
 
-CopcProcessor::makeSchema(PointLayoutPtr layout, IndexedStats& stats)
+//ABELL - Should make m_b.dimInfo modifiable and just set the dimension ID directly.
+DimInfoList CopcProcessor::makeSchema(pdal::PointLayoutPtr layout, IndexedStats& stats)
 {
-    //ABELL - fixme
-    // For now we copy the dimension list so we're sure that it matches the layout, though
-    // there's no reason why it should change. We should modify things to use a single
-    // layout.
-
     DimInfoList dims = m_b.dimInfo;
     m_extraDims.clear();
     for (FileDimInfo& fdi : dims)
@@ -128,7 +160,6 @@ CopcProcessor::makeSchema(PointLayoutPtr layout, IndexedStats& stats)
         fdi.dim = layout->registerOrAssignDim(fdi.name, fdi.type);
         if (m_b.opts.stats)
         {
-            // For single file output we need the counts by return number.
             if (fdi.dim == pdal::Dimension::Id::Classification)
                 stats.push_back({fdi.dim, Stats(fdi.name, Stats::EnumType::Enumerate, false)});
             else if (fdi.dim == pdal::Dimension::Id::ReturnNumber)
@@ -137,7 +168,25 @@ CopcProcessor::makeSchema(PointLayoutPtr layout, IndexedStats& stats)
                 stats.push_back({fdi.dim, Stats(fdi.name, Stats::EnumType::NoEnum, false)});
         }
         if (fdi.extraDim)
-            m_extraDims.push_back(DimType(fdi.dim, fdi.type));
+            m_extraDims.push_back(pdal::DimType(fdi.dim, fdi.type));
+    }
+    return dims;
+}
+
+// Copy data from the source file to the point view.
+void CopcProcessor::appendCompressed(pdal::PointViewPtr view, const DimInfoList& dims,
+    const FileInfo& fi, IndexIter begin, IndexIter end)
+{
+    //ABELL - This could be improved by making a point table that handles a bunch
+    //  of FileInfos/raw addresses. It would totally avoid the copy.
+    pdal::PointId pointId = view->size();
+    for (IndexIter it = begin; it != end; ++it)
+    {
+        char *base = fi.address() + ((*it - fi.start()) * m_b.pointSize);
+        for (const FileDimInfo& fdi : dims)
+            view->setField(fdi.dim, fdi.type, pointId,
+                reinterpret_cast<void *>(base + fdi.offset));
+        pointId++;
     }
 }
 
@@ -153,9 +202,10 @@ CopcProcessor::writeOctantCompressed(const OctantInfo& o, Index& index, IndexIte
     PointTable table;
     IndexedStats stats;
 
-    makeSchema(table->layout(), stats);
+    DimInfoList dims = makeSchema(table.layout(), stats);
     table.finalize();
 
+std::cerr << "Write compressed with index size = " << index.size() << "!\n";
     PointViewPtr view(new pdal::PointView(table));
 
     // The octant's points can came from one or more FileInfo.  The points are sorted such
@@ -175,7 +225,9 @@ CopcProcessor::writeOctantCompressed(const OctantInfo& o, Index& index, IndexIte
             if (pos == index.end() || *pos >= fii->start() + fii->numPoints())
             {
                 count += std::distance(begin, pos);
+                std::cerr << "Append " << count << " points!\n";
                 appendCompressed(view, dims, *fii, begin, pos);
+                std::cerr << "View size = " << view->size() << "!\n";
                 if (pos == index.end())
                     break;
                 begin = pos;
@@ -205,10 +257,12 @@ flush:
     return pos;
 }
 
-void CopcProcessor::createChunk(const VoxelKey& key, std::vector<char>& buf)
+void CopcProcessor::createChunk(const VoxelKey& key, pdal::PointViewPtr view)
 {
     using namespace pdal;
 
+    std::cerr << "Create chunk!\n";
+    std::cerr << "View size = " << view->size() << "!\n";
     if (view->size() == 0)
     {
         m_manager.newChunk(key, 0, 0);

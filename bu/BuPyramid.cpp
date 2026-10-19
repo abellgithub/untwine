@@ -11,6 +11,8 @@
 #include "BuPyramid.hpp"
 #include "FileInfo.hpp"
 #include "OctantInfo.hpp"
+#include "CopcPyramidManager.hpp"
+#include "PcopcPyramidManager.hpp"
 #include "../untwine/Common.hpp"
 #include "../untwine/ProgressWriter.hpp"
 
@@ -21,10 +23,13 @@ namespace untwine
 namespace bu
 {
 
-/// BuPyramid
-
-BuPyramid::BuPyramid(BaseInfo& common) : m_b(common), m_manager(m_b)
-{}
+BuPyramid::BuPyramid(BaseInfo& common) : m_b(common)
+{
+    if (m_b.opts.pcopc)
+        m_manager = std::make_unique<PcopcPyramidManager>(m_b);
+    else
+        m_manager = std::make_unique<CopcPyramidManager>(m_b);
+}
 
 
 void BuPyramid::run(ProgressWriter& progress)
@@ -36,8 +41,8 @@ void BuPyramid::run(ProgressWriter& progress)
 
     progress.setPercent(.6);
     progress.setIncrement(.4 / count);
-    m_manager.setProgress(&progress);
-    m_manager.run();
+    m_manager->setProgress(&progress);
+    m_manager->run();
 }
 
 void BuPyramid::getInputFiles()
@@ -124,9 +129,9 @@ size_t BuPyramid::queueWork()
 
     // Queue what we have and what's left that's needed.
     for (const OctantInfo& o : have)
-        m_manager.queue(o);
+        m_manager->queue(o);
     for (const VoxelKey& k : needed)
-        m_manager.queue(OctantInfo(k));
+        m_manager->queue(OctantInfo(k));
     return parentsToProcess.size();
 }
 

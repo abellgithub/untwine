@@ -14,6 +14,7 @@ public:
     void init();
     void add(void *v);
     void done();
+    void write(Parquet& file, int64_t position);
     const ColumnChunks& columns() const
     { return m_columnChunks; }
     int64_t totalByteSize() const

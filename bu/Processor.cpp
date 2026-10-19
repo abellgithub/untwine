@@ -17,13 +17,8 @@
 
 #include <pdal/PDALUtils.hpp>
 #include <pdal/StageFactory.hpp>
-#include <pdal/io/BufferReader.hpp>
 #include <pdal/filters/SortFilter.hpp>
 #include <pdal/util/Algorithm.hpp>
-
-#include <lazperf/lazperf.hpp>
-#include <lazperf/writers.hpp>
-#include <lazperf/readers.hpp>
 
 #include "Processor.hpp"
 #include "PyramidManager.hpp"
@@ -38,8 +33,8 @@ namespace bu
 static const int MinimumPoints = 100;
 static const int MinimumTotalPoints = 1500;
 
-Processor::Processor(PyramidManager& manager, const VoxelInfo& v, const BaseInfo& b) :
-    m_vi(v), m_b(b), m_manager(manager), m_points(m_b)
+Processor::Processor(PyramidManager& manager, const BaseInfo& b, const VoxelInfo& v) :
+    m_manager(manager), m_b(b), m_vi(v), m_points(m_b)
 {}
 
 
@@ -164,6 +159,7 @@ void Processor::write(Index& accepted, Index& rejected)
     if (m_vi.key() == VoxelKey(0, 0, 0, 0))
     {
         appendRemainder(accepted);
+        std::cerr << "Write octant compressed for " << accepted.size() << "!\n";
         writeOctantCompressed(m_vi.octant(), accepted, accepted.begin());
     }
     else
@@ -306,132 +302,9 @@ void Processor::writeCompressedOutput(Index& index)
         if (m_vi[octant].hasPoints() || m_vi[octant].mustWrite())
         {
             m_vi.octant().setMustWrite(true);
+std::cerr << "Write octant compressed #2 for index = " << index.size() << "!\n";
             pos = writeOctantCompressed(m_vi[octant], index, pos);
         }
-}
-
-
-// o        Octant we're writing.
-// index    Index of all rejected points that were rejected and not hoisted into the parent.
-// pos      Start position of this octant's point in the index.
-// \return  Position of the first point in the next octant of our index.
-Processor::IndexIter
-Processor::writeOctantCompressed(const OctantInfo& o, Index& index, IndexIter pos)
-{
-    using namespace pdal;
-
-    auto begin = pos;
-    PointTable table;
-    IndexedStats stats;
-
-    //ABELL - fixme
-    // For now we copy the dimension list so we're sure that it matches the layout, though
-    // there's no reason why it should change. We should modify things to use a single
-    // layout.
-
-    DimInfoList dims = m_b.dimInfo;
-    m_extraDims.clear();
-    for (FileDimInfo& fdi : dims)
-    {
-        fdi.dim = table.layout()->registerOrAssignDim(fdi.name, fdi.type);
-        if (m_b.opts.stats)
-        {
-            // For single file output we need the counts by return number.
-            if (fdi.dim == pdal::Dimension::Id::Classification)
-                stats.push_back({fdi.dim, Stats(fdi.name, Stats::EnumType::Enumerate, false)});
-            else if (fdi.dim == pdal::Dimension::Id::ReturnNumber)
-                stats.push_back({fdi.dim, Stats(fdi.name, Stats::EnumType::Enumerate, false)});
-            else
-                stats.push_back({fdi.dim, Stats(fdi.name, Stats::EnumType::NoEnum, false)});
-        }
-        if (fdi.extraDim)
-            m_extraDims.push_back(DimType(fdi.dim, fdi.type));
-    }
-    table.finalize();
-
-    PointViewPtr view(new pdal::PointView(table));
-
-    // The octant's points can came from one or more FileInfo.  The points are sorted such
-    // all the points that come from a single FileInfo are consecutive.
-    auto fii = o.fileInfos().begin();
-    auto fiiEnd = o.fileInfos().end();
-    size_t count = 0;
-
-    if (fii != fiiEnd)
-    {
-        // We're trying to find the range of points that come from a single FileInfo.
-        // If pos is the end of the index of the the current file info, append the points
-        // to the view.  Otherwise, advance the position.
-        while (true)
-        {
-            if (pos == index.end() || *pos >= fii->start() + fii->numPoints())
-            {
-                count += std::distance(begin, pos);
-                appendCompressed(view, dims, *fii, begin, pos);
-                if (pos == index.end())
-                    break;
-                begin = pos;
-
-                // Advance through file infos as long as we don't have points that
-                // correspond to it.
-                do
-                {
-                    fii++;
-                    if (fii == fiiEnd)
-                        goto flush;
-                } while (*begin >= fii->start() + fii->numPoints());
-            }
-            pos++;
-        }
-    }
-flush:
-    try
-    {
-        flushCompressed(view, o, stats);
-    }
-    catch (pdal_error& err)
-    {
-        throw FatalError(err.what());
-    }
-    m_manager.logOctant(o.key(), count, stats);
-    return pos;
-}
-
-
-// Copy data from the source file to the point view.
-void Processor::appendCompressed(pdal::PointViewPtr view, const DimInfoList& dims,
-    const FileInfo& fi, IndexIter begin, IndexIter end)
-{
-    //ABELL - This could be improved by making a point table that handles a bunch
-    //  of FileInfos/raw addresses. It would totally avoid the copy.
-    pdal::PointId pointId = view->size();
-    for (IndexIter it = begin; it != end; ++it)
-    {
-        char *base = fi.address() + ((*it - fi.start()) * m_b.pointSize);
-        for (const FileDimInfo& fdi : dims)
-            view->setField(fdi.dim, fdi.type, pointId,
-                reinterpret_cast<void *>(base + fdi.offset));
-        pointId++;
-    }
-}
-
-void Processor::flushCompressed(pdal::PointViewPtr view, const OctantInfo& oi, IndexedStats& stats)
-{
-    // For single file output we need the stats for
-    if (m_b.opts.stats)
-    {
-        for (pdal::PointId id = 0; id < view->size(); ++id)
-        {
-            for (auto& sp : stats)
-            {
-                pdal::Dimension::Id dim = sp.first;
-                Stats& s = sp.second;
-                s.insert(view->getFieldAs<double>(dim, id));
-            }
-        }
-    }
-
-    createChunk(oi.key(), view);
 }
 
 } // namespace bu

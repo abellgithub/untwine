@@ -1,3 +1,5 @@
+#include <fstream>
+
 #include "Parquet.hpp"
 #include "Output.hpp"
 #include "Page.hpp"
@@ -7,22 +9,18 @@ char *writeFooter(const Schema& schema, const RowGroups& rowGroups, int64_t numR
 char *writeDataPageHeader(Page p, Output& output);
 
 Parquet::Parquet(const std::filesystem::path& filename) :
-    m_out(filename, std::ios_base::binary)
+    m_filename(filename)
 {
-    if (!m_out)
-        throw "Couldn't open file '" + std::string(filename) + "' for output.";
 
-    write("PAR1", 4);
+    std::ofstream out(m_filename, FileBits);
+    out.write("PAR1", 4);
+    if (!out)
+        throw "Couldn't open file '" + std::string(filename) + "' for output.";
 }
 
 Schema& Parquet::schema()
 {
     return m_schema;
-}
-
-int64_t Parquet::position()
-{
-    return (int64_t)m_out.tellp();
 }
 
 void Parquet::addRowGroup(RowGroup&& rg)
@@ -32,11 +30,6 @@ void Parquet::addRowGroup(RowGroup&& rg)
     m_rowGroups.push_back(std::move(rg));
 }
 
-void Parquet::write(const char *c, std::size_t size)
-{
-    m_out.write(c, size);
-}
-
 // Write the footer and such
 void Parquet::done()
 {
@@ -44,10 +37,13 @@ void Parquet::done()
     BackedOutput footer(10'000);
 
     writeFooter(schema(), m_rowGroups, m_numRows, copcVlrOffset, footer);
-    write(footer.data(), footer.size());
+
+    std::ofstream out(m_filename, FileBits);
+    out.seekp(0, std::ios_base::end);
+    out.write(footer.data(), footer.size());
     std::cerr << "Footer size = " << footer.size() << "!\n";
     uint32_t footerSize = tole((uint32_t)footer.size());
-    write((char *)&footerSize, 4);
-    write("PAR1", 4);
+    out.write((char *)&footerSize, 4);
+    out.write("PAR1", 4);
 }
 

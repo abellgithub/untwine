@@ -12,7 +12,10 @@
 
 #pragma once
 
+#include <atomic>
+
 #include "PyramidManager.hpp"
+#include "parquet/Parquet.hpp"
 #include "parquet/Schema.hpp"
 
 namespace untwine
@@ -20,18 +23,23 @@ namespace untwine
 namespace bu
 {
 
-class PyramidManager
+class PcopcPyramidManager : public PyramidManager
 {
 public:
     PcopcPyramidManager(const BaseInfo& b);
-    ~PcopcPyramidManager();
+    ~PcopcPyramidManager() override;
+
+    uint64_t newChunk(const VoxelKey& key, uint32_t size, uint32_t count) override;
 
 private:
     void prepare() override;
     void addProcessor(const VoxelInfo& vi) override;
     void createSchema();
 
-    parquet::Schema m_schema;
+    Parquet m_file;
+    // Location where data should be written. Data starts at offset 4 (after the magic number).
+    std::atomic<uint64_t> m_position = 4;
+    Schema m_schema;
 };
 
 } // namespace bu

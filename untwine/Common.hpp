@@ -25,6 +25,7 @@ using StringList = std::vector<std::string>;
 struct Options
 {
     std::string outputName;
+    bool pcopc;
     StringList inputFiles;
     std::string tempDir;
     bool doCube;

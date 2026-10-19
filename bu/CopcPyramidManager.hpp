@@ -12,8 +12,8 @@
 
 #pragma once
 
-
 #include "PyramidManager.hpp"
+#include "CopcSupport.hpp"
 
 namespace untwine
 {
@@ -24,10 +24,10 @@ class CopcPyramidManager : public PyramidManager
 {
 public:
     CopcPyramidManager(const BaseInfo& b);
-    ~CopcPyramidManager();
+    ~CopcPyramidManager() override;
 
     void addProcessor(const VoxelInfo& vi) override;
-    uint64_t newChunk(const VoxelKey& key, uint32_t size, uint32_t count);
+    uint64_t newChunk(const VoxelKey& key, uint32_t size, uint32_t count) override;
 
 private:
     CopcSupport m_copc;

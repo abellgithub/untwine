@@ -11,6 +11,8 @@
  ****************************************************************************/
 
 #include "CopcPyramidManager.hpp"
+#include "CopcProcessor.hpp"
+#include "../untwine/ProgressWriter.hpp"
 
 namespace untwine
 {
@@ -39,10 +41,10 @@ void CopcPyramidManager::addProcessor(const VoxelInfo& vi)
 {
     m_pool.add([vi, this]()
     {
-        CopcProcessor p(*this, vi, m_b);
+        CopcProcessor p(*this, m_b, vi);
         p.run();
         m_progress->writeIncrement("Sample complete for " + vi.key().toString());
-    }
+    });
 }
 
 // Called when a processor wants to write a chunk. Returns the location

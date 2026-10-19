@@ -2,9 +2,11 @@
 
 //ABELL
 #include <iostream>
+#include <fstream>
 
 #include "Buffer.hpp"
 #include "Misc.hpp"
+#include "Output.hpp"
 #include "Schema.hpp"
 
 class Parquet;
@@ -12,14 +14,16 @@ class Parquet;
 class ColumnChunk
 {
 public:
-    ColumnChunk(const SchemaElt& elt) : m_elt(elt)
+    ColumnChunk(const SchemaElt& elt) : m_elt(elt), m_pageData(100)
     {}
 
     void add(void *v);
     void compress();
     void tole();
     void calcStats();
-    void done(Parquet& file);
+    void done();
+    void write(std::ofstream& out);
+
     template <typename T> void toleTyped();
 
     ParquetType type() const
@@ -45,6 +49,7 @@ private:
     const SchemaElt& m_elt;
     Buffer m_buffer;
     Buffer m_compressionBuffer;
+    BackedOutput m_pageData;  // Page header data.
     CompressionCodec m_compression = CompressionCodec::UNCOMPRESSED;
     int64_t m_numValues = 0;
     int64_t m_uncompressedSize = 0;

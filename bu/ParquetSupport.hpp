@@ -1,5 +1,7 @@
 #pragma once
 
+#include <fstream>
+
 #include "../untwine/Common.hpp"
 
 namespace untwine
@@ -13,7 +15,8 @@ public:
     ParquetSupport(const BaseInfo& b);
 
 private:
-    const BaseInfo& m_b;
+//    const BaseInfo& m_b;
+    std::ofstream m_f;
 };
 
 } // namespace bu
