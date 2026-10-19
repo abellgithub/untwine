@@ -73,9 +73,9 @@ private:
     std::string m_error;
     std::unordered_map<VoxelKey, int> m_written;
 
-    virtual void finish()
-    {}
     virtual void prepare()
+    {}
+    virtual void finish()
     {}
     virtual void addProcessor(const VoxelInfo& vi) = 0;
 

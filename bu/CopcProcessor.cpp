@@ -49,9 +49,7 @@ void sortChunk(pdal::PointViewPtr view)
 
 CopcProcessor::CopcProcessor(PyramidManager& manager, const BaseInfo& b, const VoxelInfo& vi) :
     Processor(manager, b, vi)
-{
-        std::cerr << "Created copc processor!\n";
-    }
+{}
 
 void CopcProcessor::flushCompressed(pdal::PointViewPtr view, const OctantInfo& oi,
     IndexedStats& stats)
@@ -205,7 +203,6 @@ CopcProcessor::writeOctantCompressed(const OctantInfo& o, Index& index, IndexIte
     DimInfoList dims = makeSchema(table.layout(), stats);
     table.finalize();
 
-std::cerr << "Write compressed with index size = " << index.size() << "!\n";
     PointViewPtr view(new pdal::PointView(table));
 
     // The octant's points can came from one or more FileInfo.  The points are sorted such
@@ -225,9 +222,7 @@ std::cerr << "Write compressed with index size = " << index.size() << "!\n";
             if (pos == index.end() || *pos >= fii->start() + fii->numPoints())
             {
                 count += std::distance(begin, pos);
-                std::cerr << "Append " << count << " points!\n";
                 appendCompressed(view, dims, *fii, begin, pos);
-                std::cerr << "View size = " << view->size() << "!\n";
                 if (pos == index.end())
                     break;
                 begin = pos;
@@ -261,8 +256,6 @@ void CopcProcessor::createChunk(const VoxelKey& key, pdal::PointViewPtr view)
 {
     using namespace pdal;
 
-    std::cerr << "Create chunk!\n";
-    std::cerr << "View size = " << view->size() << "!\n";
     if (view->size() == 0)
     {
         m_manager.newChunk(key, 0, 0);

@@ -159,7 +159,6 @@ void Processor::write(Index& accepted, Index& rejected)
     if (m_vi.key() == VoxelKey(0, 0, 0, 0))
     {
         appendRemainder(accepted);
-        std::cerr << "Write octant compressed for " << accepted.size() << "!\n";
         writeOctantCompressed(m_vi.octant(), accepted, accepted.begin());
     }
     else
@@ -302,7 +301,6 @@ void Processor::writeCompressedOutput(Index& index)
         if (m_vi[octant].hasPoints() || m_vi[octant].mustWrite())
         {
             m_vi.octant().setMustWrite(true);
-std::cerr << "Write octant compressed #2 for index = " << index.size() << "!\n";
             pos = writeOctantCompressed(m_vi[octant], index, pos);
         }
 }
