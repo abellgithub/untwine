@@ -31,11 +31,10 @@ private:
     Processor::IndexIter writeOctantCompressed(const OctantInfo& o, Index& index, IndexIter pos)
         override;
 
-    void appendCompressed(const FileInfo& fi, IndexIter begin, IndexIter end);
-    void flushCompressed(const OctantInfo& o);
+    void appendCompressed(RowGroup& rowGroup, const FileInfo& fi, IndexIter begin, IndexIter end);
+    void flushCompressed(RowGroup& rowGroup, const OctantInfo& o);
 
     Parquet& m_file;
-    RowGroup m_rowGroup;
 };
 
 } // namespace bu

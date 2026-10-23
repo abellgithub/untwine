@@ -205,6 +205,7 @@ CopcProcessor::writeOctantCompressed(const OctantInfo& o, Index& index, IndexIte
 
     PointViewPtr view(new pdal::PointView(table));
 
+std::cerr << "Write compressed octant = " << o.key() << "!\n";
     // The octant's points can came from one or more FileInfo.  The points are sorted such
     // all the points that come from a single FileInfo are consecutive.
     auto fii = o.fileInfos().begin();

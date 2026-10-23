@@ -23,8 +23,11 @@ public:
 
     void setNumChildren(size_t numChildren)
     { _numChildren = numChildren; }
-    void setOffset(size_t offset)
-    { _offset = offset; }
+    SchemaElt& setOffset(size_t offset)
+    {
+        _offset = offset;
+        return *this;
+    }
     std::size_t offset() const
     { return _offset; }
     std::size_t size() const
@@ -39,8 +42,11 @@ public:
     { return false; }
 
     using FetchFunc = std::function<void(void *dst, void *src)>;
-    void setFetch(const FetchFunc& func)
-    { _fetchFunc = func; }
+    SchemaElt &setFetch(const FetchFunc& func)
+    {
+        _fetchFunc = func;
+        return *this;
+    }
     const FetchFunc& fetch() const
     { return _fetchFunc; }
 

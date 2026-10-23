@@ -14,6 +14,7 @@ RowGroup::RowGroup(Parquet& parquet) : m_file(parquet)
 
 void RowGroup::init()
 {
+    m_columnChunks.clear();
     for (const SchemaElt& elt : m_file.schema().elements())
         m_columnChunks.push_back(ColumnChunk(elt));
 
@@ -36,7 +37,8 @@ void RowGroup::done()
 {
     // This doesn't appear to include the page headers, but check this.
     m_totalByteSize = m_numRows * m_file.schema().rowLength();
-std::cerr << "Total byte size = " << m_totalByteSize << "!\n";
+std::cerr << "Total byte size (num rows * rowLength) = " << m_totalByteSize << "(" <<
+    m_numRows << " * " << m_file.schema().rowLength() << ")!\n";
 
     for (ColumnChunk& col : m_columnChunks)
     {
@@ -47,7 +49,7 @@ std::cerr << "Total byte size = " << m_totalByteSize << "!\n";
 
 void RowGroup::write(Parquet& file, int64_t position)
 {
-    std::ofstream out(file.name(), Parquet::FileBits);
+    std::ofstream out(file.name(), std::ios::binary | std::ios::in | std::ios::out);
     out.seekp(std::ofstream::pos_type(position));
     for (ColumnChunk& col : m_columnChunks)
         col.write(out);

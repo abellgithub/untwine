@@ -7,8 +7,9 @@ char *writeDataPageHeader(Page p, Output& output);
 
 void ColumnChunk::add(void *v)
 {
-    char *pos = m_buffer.getPos(m_elt.size());
-    m_elt.fetch()(pos, v);
+    char *dst = m_buffer.getPos(m_elt.size());
+    char *src = reinterpret_cast<char *>(v) + m_elt.offset();
+    m_elt.fetch()(dst, src);
     m_numValues++;
 }
 

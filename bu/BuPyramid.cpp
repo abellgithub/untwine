@@ -25,6 +25,7 @@ namespace bu
 
 BuPyramid::BuPyramid(BaseInfo& common) : m_b(common)
 {
+    std::cerr << "Making BU pyramid!\n";
     if (m_b.opts.pcopc)
         m_manager = std::make_unique<PcopcPyramidManager>(m_b);
     else

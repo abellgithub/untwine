@@ -21,13 +21,15 @@ namespace bu
 {
 
 PcopcProcessor::PcopcProcessor(PyramidManager& manager, const BaseInfo& b, const VoxelInfo& vi,
-    Parquet& parquet) : Processor(manager, b, vi), m_file(parquet), m_rowGroup(parquet)
-{
-}
+    Parquet& parquet) : Processor(manager, b, vi), m_file(parquet)
+{}
 
 Processor::IndexIter
 PcopcProcessor::writeOctantCompressed(const OctantInfo& o, Index& index, IndexIter pos)
 {
+    RowGroup rowGroup(m_file);
+
+    std::cerr << "Write octant compressed for " << o.key() << " with index size = " << index.size() << "!\n";
     auto fii = o.fileInfos().begin();
     auto fiiEnd = o.fileInfos().end();
     size_t count = 0;
@@ -43,7 +45,8 @@ PcopcProcessor::writeOctantCompressed(const OctantInfo& o, Index& index, IndexIt
             if (pos == index.end() || *pos >= fii->start() + fii->numPoints())
             {
                 count += std::distance(begin, pos);
-                appendCompressed(*fii, begin, pos);
+                std::cerr << "Append compressed for " << (std::distance(begin, pos)) << "!\n";
+                appendCompressed(rowGroup, *fii, begin, pos);
                 if (pos == index.end())
                     break;
                 begin = pos;
@@ -61,7 +64,7 @@ PcopcProcessor::writeOctantCompressed(const OctantInfo& o, Index& index, IndexIt
         }
     }
 flush:
-    flushCompressed(o);
+    flushCompressed(rowGroup, o);
 
     //
     (void)count;
@@ -71,20 +74,22 @@ flush:
     return pos;
 }
 
-void PcopcProcessor::flushCompressed(const OctantInfo& o)
+void PcopcProcessor::flushCompressed(RowGroup& rowGroup, const OctantInfo& o)
 {
-    m_rowGroup.done();
-    int64_t position = m_manager.newChunk(o.key(), m_rowGroup.compressedTotalSize(),
-        m_rowGroup.numRows());
-    m_rowGroup.write(m_file, position);
+    rowGroup.done();
+std::cerr << "Flush compressed for " << o.key() << " with num rows = " << rowGroup.numRows() << "!\n";
+    int64_t position = m_manager.newChunk(o.key(), rowGroup.compressedTotalSize(),
+        rowGroup.numRows());
+    rowGroup.write(m_file, position);
 }
 
-void PcopcProcessor::appendCompressed(const FileInfo& fi, IndexIter begin, IndexIter end)
+void PcopcProcessor::appendCompressed(RowGroup& rowGroup, const FileInfo& fi,
+    IndexIter begin, IndexIter end)
 {
     for (IndexIter it = begin; it != end; ++it)
     {
-        char *base = fi.address() + ((*it - fi.start()) + m_b.pointSize);
-        m_rowGroup.add(base);
+        char *base = fi.address() + ((*it - fi.start()) * m_b.pointSize);
+        rowGroup.add(base);
     }
 }
 

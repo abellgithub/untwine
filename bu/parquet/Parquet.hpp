@@ -10,8 +10,6 @@ struct Page;
 class Parquet
 {
 public:
-    static const std::ios_base::openmode FileBits = std::ios::in | std::ios::out | std::ios::binary;
-
     Parquet(const std::filesystem::path& filename);
 
     Schema& schema();

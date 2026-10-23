@@ -33,13 +33,13 @@ public:
 
 private:
     void prepare() override;
+    void finish() override;
     void addProcessor(const VoxelInfo& vi) override;
     void createSchema();
 
     Parquet m_file;
     // Location where data should be written. Data starts at offset 4 (after the magic number).
     std::atomic<uint64_t> m_position = 4;
-    Schema m_schema;
 };
 
 } // namespace bu

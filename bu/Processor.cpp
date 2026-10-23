@@ -86,6 +86,7 @@ void Processor::runLocal()
         for (int i = 0; i < 8; ++i)
             m_vi.octant().appendFileInfos(m_vi[i]);
 
+    std::cerr << "Octant size = " << m_vi.octant().numPoints() << "!\n";
     // Accepted points are those that will go in this (the parent) cell.
     // Rejected points will remain in the child cell they were in previously.
     Index accepted;
@@ -163,6 +164,7 @@ void Processor::write(Index& accepted, Index& rejected)
     }
     else
         writeBinOutput(accepted);
+std::cerr << "Write compressed output for rejected with size = " << rejected.size() << "!\n";
     writeCompressedOutput(rejected);
 }
 
@@ -301,6 +303,7 @@ void Processor::writeCompressedOutput(Index& index)
         if (m_vi[octant].hasPoints() || m_vi[octant].mustWrite())
         {
             m_vi.octant().setMustWrite(true);
+            std::cerr << "writeCompressedOutput for " << m_vi[octant].key() << " with index size = " << index.size() << "!\n";
             pos = writeOctantCompressed(m_vi[octant], index, pos);
         }
 }

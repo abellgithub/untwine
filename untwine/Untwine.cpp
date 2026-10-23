@@ -199,6 +199,11 @@ int main(int argc, char *argv[])
         progress.writeErrorMessage(std::string("Error: ") + s + "\n");
         status = -1;
     }
+    catch (const std::string& s)
+    {
+        progress.writeErrorMessage(std::string("Error: ") + s + "\n");
+        status = -1;
+    }
     catch (const pdal::pdal_error& err)
     {
         progress.writeErrorMessage(err.what());
@@ -219,7 +224,6 @@ int main(int argc, char *argv[])
         progress.writeErrorMessage("Unknown/unexpected exception.");
         status = -1;
     }
-
     cleanup(common.opts.tempDir, !tempDirExists);
 
     return status;
