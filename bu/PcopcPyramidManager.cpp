@@ -29,12 +29,18 @@ PcopcPyramidManager::~PcopcPyramidManager()
 
 uint64_t PcopcPyramidManager::newChunk(const VoxelKey& key, uint32_t size, uint32_t count)
 {
-    std::cerr << "New chunk!\n";
-    // We currently do nothing with these, but need to do logging.
-    (void)key;
-    (void)count;
+    static std::mutex m;
 
-    return m_position.fetch_add(size);
+    uint64_t chunkStart;
+    std::lock_guard l(m);
+    {
+        chunkStart = m_position;
+        m_position += size;
+    }
+
+    //ABELL - do logging.
+    m_hierarchy.newChunk(key, size, count, chunkStart);
+    return chunkStart;
 }
 
 void PcopcPyramidManager::createSchema()
@@ -51,8 +57,8 @@ void PcopcPyramidManager::createSchema()
                 setFetch([](void *dst, void *src)
                 {
                     uint8_t bits = *reinterpret_cast<uint8_t *>(src);
-                    bits = bits & 0x1;
-                    std::memcpy(dst, &bits, 1);
+                    int32_t *idst = reinterpret_cast<int32_t *>(dst);
+                    *idst = bits & 0x1;;
                 }
             );
             schema.addColumn<ParquetType::INT32>("Keypoint").
@@ -60,8 +66,8 @@ void PcopcPyramidManager::createSchema()
                 setFetch([](void *dst, void *src)
                 {
                     uint8_t bits = *reinterpret_cast<uint8_t *>(src);
-                    bits = (bits >> 1) & 0x1;
-                    std::memcpy(dst, &bits, 1);
+                    int32_t *idst = reinterpret_cast<int32_t *>(dst);
+                    *idst = (bits >> 1) & 0x1;
                 }
             );
             schema.addColumn<ParquetType::INT32>("Withheld").
@@ -69,8 +75,8 @@ void PcopcPyramidManager::createSchema()
                 setFetch([](void *dst, void *src)
                 {
                     uint8_t bits = *reinterpret_cast<uint8_t *>(src);
-                    bits = (bits >> 2) & 0x1;
-                    std::memcpy(dst, &bits, 1);
+                    int32_t *idst = reinterpret_cast<int32_t *>(dst);
+                    *idst = (bits >> 2) & 0x1;
                 }
             );
             schema.addColumn<ParquetType::INT32>("Overlap").
@@ -78,8 +84,8 @@ void PcopcPyramidManager::createSchema()
                 setFetch([](void *dst, void *src)
                 {
                     uint8_t bits = *reinterpret_cast<uint8_t *>(src);
-                    bits = (bits >> 3) & 0x1;
-                    std::memcpy(dst, &bits, 1);
+                    int32_t *idst = reinterpret_cast<int32_t *>(dst);
+                    *idst = (bits >> 3) & 0x1;
                 }
             );
             schema.addColumn<ParquetType::INT32>("Scanner Channel").
@@ -87,8 +93,8 @@ void PcopcPyramidManager::createSchema()
                 setFetch([](void *dst, void *src)
                 {
                     uint8_t bits = *reinterpret_cast<uint8_t *>(src);
-                    bits = (bits >> 4) & 0x3;
-                    std::memcpy(dst, &bits, 1);
+                    int32_t *idst = reinterpret_cast<int32_t *>(dst);
+                    *idst = (bits >> 4) & 0x3;
                 }
             );
             schema.addColumn<ParquetType::INT32>("Scan Direction").
@@ -96,8 +102,8 @@ void PcopcPyramidManager::createSchema()
                 setFetch([](void *dst, void *src)
                 {
                     uint8_t bits = *reinterpret_cast<uint8_t *>(src);
-                    bits = (bits >> 6) & 0x1;
-                    std::memcpy(dst, &bits, 1);
+                    int32_t *idst = reinterpret_cast<int32_t *>(dst);
+                    *idst = (bits >> 6) & 0x1;
                 }
             );
             schema.addColumn<ParquetType::INT32>("Edge Of Flight Line").
@@ -105,8 +111,8 @@ void PcopcPyramidManager::createSchema()
                 setFetch([](void *dst, void *src)
                 {
                     uint8_t bits = *reinterpret_cast<uint8_t *>(src);
-                    bits = (bits >> 7) & 0x1;
-                    std::memcpy(dst, &bits, 1);
+                    int32_t *idst = reinterpret_cast<int32_t *>(dst);
+                    *idst = (bits >> 7) & 0x1;
                 }
             );
         }
@@ -178,13 +184,20 @@ void PcopcPyramidManager::prepare()
 
 void PcopcPyramidManager::finish()
 {
-    m_file.done();
+    createHierarchy();
+
+    std::ofstream out(m_file.name(), std::ios::binary | std::ios::in | std::ios::out);
+    out.seekp(0, std::ios_base::end);
+    uint64_t beginPos = out.tellp();
+    pdal::OLeStream leOut(&out);
+    m_hierarchy.emitRoot(leOut, VoxelKey(0, 0, 0, 0), m_childCounts);
+    uint64_t endPos = out.tellp();
+
+    m_file.done(beginPos, endPos - beginPos);
 }
 
 void PcopcPyramidManager::addProcessor(const VoxelInfo& vi)
 {
-std::cerr << "Add processor for " << vi.key() << "!\n";
-std::cerr << "Voxel num points = " << vi.numPoints() << "!\n";
     m_pool.add([vi, this]()
     {
         PcopcProcessor p(*this, m_b, vi, m_file);

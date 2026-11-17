@@ -18,8 +18,6 @@ using KVMetadataPtr = std::shared_ptr<const parquet::KeyValueMetadata>;
 using RowGroupMetaDataPtr = std::unique_ptr<parquet::RowGroupMetaData>;
 using ColumnReaderPtr = std::shared_ptr<parquet::ColumnReader>;
 
-bool dump;
-
 // Read the column data for a row group.
 template<typename ReaderType, typename DataType>
 void readData(ColumnReaderPtr baseReader, int64_t numRows, double& total)
@@ -32,8 +30,6 @@ void readData(ColumnReaderPtr baseReader, int64_t numRows, double& total)
     const size_t batchSize = 100;
     std::vector<DataType> values(batchSize);
     int outcnt = 0;
-std::cerr << "Num Rows = " << numRows << "!\n";
-int i = 0;
     while (numRows > 0)
     {
         int64_t levels = columnReader->ReadBatch(batchSize, nullptr, nullptr, values.data(), &cnt);
@@ -41,8 +37,6 @@ int i = 0;
         for (int j = 0; j < cnt; j++)
         {
             double val = values[j];
-            if (dump)
-                std::cerr << "Val " << ++i << " = " << val << "!\n";
             total += val;
         }
         numRows -= cnt;
@@ -93,15 +87,12 @@ int main(int argc, char *argv[])
 std::cerr << "Num row groups = " << numRowGroups << "!\n";
         for (size_t r = 0; r < numRowGroups; ++r)
         {
-std::cerr << "Row group " << r << "!\n";
             RowGroupReaderPtr rgReader = reader_->RowGroup(r);
             RowGroupMetaDataPtr rg = metadata_->RowGroup(r);
             for (size_t c = 0; c < numColumns; ++c)
             {
-dump = (c == 0);
                 ColumnReaderPtr columnReader = rgReader->Column(c);
                 const ColumnDescriptor *col = s->Column(c);
-                std::cerr << "Reading " << col->name() << "!\n";
                 switch (col->physical_type())
                 {
                     case Type::INT32:
@@ -128,7 +119,8 @@ dump = (c == 0);
         for (size_t c = 0; c < numColumns; ++c)
         {
             const ColumnDescriptor *col = s->Column(c);
-            std::cerr << std::setprecision(9) << col->name() << " avg = " << (colTotals[c] / numRows) << "!\n";
+            std::cerr << std::setprecision(9) << col->name() << " avg = " <<
+                (colTotals[c] / numRows) << "!\n";
         }
 
     return 0;

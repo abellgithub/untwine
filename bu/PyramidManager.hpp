@@ -17,10 +17,7 @@
 #include <unordered_map>
 #include <vector>
 
-/**
-#include "CopcSupport.hpp"
-#include "OctantInfo.hpp"
-**/
+#include "Hierarchy.hpp"
 #include "Stats.hpp"
 #include "VoxelInfo.hpp"
 #include "../untwine/ThreadPool.hpp"
@@ -58,7 +55,7 @@ protected:
     ThreadPool m_pool;
     StatsMap m_stats;
     ProgressWriter *m_progress {nullptr};
-    std::unordered_map<VoxelKey, int> m_childCounts;
+    Hierarchy::CountMap m_childCounts;  // Count of child voxels for any voxel.
 
     void createHierarchy();
 

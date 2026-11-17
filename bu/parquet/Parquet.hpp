@@ -14,7 +14,7 @@ public:
 
     Schema& schema();
     void addRowGroup(RowGroup&& rg);
-    void done();
+    void done(int64_t copcHierOffset, int64_t copcHierSize);
     const std::filesystem::path& name() const
     { return m_filename; }
 

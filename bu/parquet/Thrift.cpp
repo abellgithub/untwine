@@ -342,7 +342,7 @@ void writeDataPageHeader(Page page, Output& parent)
 }
 
 void writeFooter(const Schema& schema, const RowGroups& rowGroups, int64_t numRows,
-    int64_t copcVlrOffset, Output& output)
+    int64_t copcHierOffset, int64_t copcHierSize, Output& output)
 {
     Struct s(output);
 
@@ -376,12 +376,18 @@ void writeFooter(const Schema& schema, const RowGroups& rowGroups, int64_t numRo
     s.writeHeader(5, ThriftType::LIST);
     {
         List l(s);
-        l.writeHeader(1, ThriftType::STRUCT);
+        l.writeHeader(2, ThriftType::STRUCT);
             Struct kv(l);
             kv.writeHeader(1, ThriftType::STRING);
-            kv.write("copc_info_vlr_offset");
+            kv.write("pcopc_hierarchy_offset");
             kv.writeHeader(2, ThriftType::STRING);
-            kv.write(std::to_string(copcVlrOffset));
+            kv.write(std::to_string(copcHierOffset));
+            kv.done();
+
+            kv.writeHeader(1, ThriftType::STRING);
+            kv.write("pcopc_hierarchy_size");
+            kv.writeHeader(2, ThriftType::STRING);
+            kv.write(std::to_string(copcHierSize));
             kv.done();
     }
 

@@ -49,6 +49,8 @@ void ColumnChunk::done()
 {
     calcStats();
     tole();
+std::cerr << "Done column chunk for " << m_elt.name() << " with num values = " << m_numValues << "!\n";
+    std::cerr << "Num values = " << m_numValues << "!\n";
     compress();
 
     Page p;
@@ -63,8 +65,10 @@ void ColumnChunk::done()
 
 void ColumnChunk::write(std::ofstream& out)
 {
+std::cerr << "Writing column chunk for " << m_elt.name() << " at " << out.tellp() << "!\n";
     setOffset(out.tellp());
     out.write(m_pageData.data(), m_pageData.size());
     out.write(m_compressionBuffer.data(), m_compressionBuffer.size());
     m_compressionBuffer.release();
+std::cerr << "End column chunk at " << out.tellp() << "!\n";
 }

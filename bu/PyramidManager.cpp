@@ -169,7 +169,7 @@ void PyramidManager::logOctant(const VoxelKey& k, int cnt, const IndexedStats& i
 
 void PyramidManager::createHierarchy()
 {
-    // Create a map of child counts for the hierarchy.
+    // Create a map of child counts of voxels for the hierarchy.
     std::function<int(const VoxelKey&)> calcCounts;
     calcCounts = [this, &calcCounts](const VoxelKey& k)
     {

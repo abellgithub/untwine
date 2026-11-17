@@ -6,7 +6,7 @@
 #include "../../untwine/FatalError.hpp"
 
 char *writeFooter(const Schema& schema, const RowGroups& rowGroups, int64_t numRows,
-    int64_t copcVlrOffset, Output& output);
+    int64_t copcHierOffset, int64_t copcHierSize, Output& output);
 char *writeDataPageHeader(Page p, Output& output);
 
 Parquet::Parquet(const std::filesystem::path& filename) :
@@ -32,12 +32,12 @@ void Parquet::addRowGroup(RowGroup&& rg)
 }
 
 // Write the footer and such
-void Parquet::done()
+void Parquet::done(int64_t copcHierOffset, int64_t copcHierSize)
 {
     int64_t copcVlrOffset = 0;
     BackedOutput footer(10'000);
 
-    writeFooter(schema(), m_rowGroups, m_numRows, copcVlrOffset, footer);
+    writeFooter(schema(), m_rowGroups, m_numRows, copcHierOffset, copcHierSize, footer);
 
     std::ofstream out(m_filename, std::ios::in | std::ios::out | std::ios::binary);
     out.seekp(0, std::ios_base::end);

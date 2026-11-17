@@ -12,11 +12,8 @@
 
 #pragma once
 
-#include <atomic>
-
 #include "PyramidManager.hpp"
 #include "parquet/Parquet.hpp"
-#include "parquet/Schema.hpp"
 
 namespace untwine
 {
@@ -39,7 +36,8 @@ private:
 
     Parquet m_file;
     // Location where data should be written. Data starts at offset 4 (after the magic number).
-    std::atomic<uint64_t> m_position = 4;
+    uint64_t m_position = 4;
+    Hierarchy m_hierarchy;
 };
 
 } // namespace bu

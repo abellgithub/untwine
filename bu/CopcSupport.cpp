@@ -15,15 +15,7 @@
 
 #include "CopcSupport.hpp"
 
-#include <pdal/PointLayout.hpp>
-#include <pdal/util/Algorithm.hpp>
-#include <pdal/util/OStream.hpp>
-#include <pdal/util/Extractor.hpp>
-
 #include <lazperf/filestream.hpp>
-
-#include "../untwine/Common.hpp"
-#include "../untwine/FileDimInfo.hpp"
 
 #include <stringconv.hpp>  // untwine/os
 
@@ -143,20 +135,15 @@ void CopcSupport::addEbFields()
 /// \return  The offset of the chunk in the file.
 uint64_t CopcSupport::newChunk(const VoxelKey& key, int32_t size, int32_t count)
 {
-    // Chunks of size zero are a special case.
-    if (count == 0)
-    {
-        m_hierarchy[key] = { 0, 0, 0 };
-        return 0;
-    }
-
     uint64_t chunkStart = m_pointPos;
+    m_hierarchy.newChunk(key, size, count, chunkStart);
+    if (count == 0)
+        return 0;
+
     m_pointPos += size;
-    assert(count >= 0);
     m_chunkTable.push_back({(uint64_t)count, (uint64_t)size});
     m_header.point_count += count;
     m_header.point_count_14 += count;
-    m_hierarchy[key] = { chunkStart, size, count };
     return chunkStart;
 }
 
@@ -264,13 +251,14 @@ void CopcSupport::writeChunkTable()
     m_header.evlr_offset = out.position();
 }
 
-void CopcSupport::writeHierarchy(const CountMap& counts)
+void CopcSupport::writeHierarchy(const Hierarchy::CountMap& counts)
 {
     // Move to the location *after* the EVLR header.
     m_f.seekp(m_header.evlr_offset + lazperf::evlr_header::Size);
 
     uint64_t beginPos = m_f.tellp();
-    Hierarchy root = emitRoot(VoxelKey(0, 0, 0, 0), counts);
+    pdal::OLeStream out(&m_f);
+    Hierarchy::Entry root = m_hierarchy.emitRoot(out, VoxelKey(0, 0, 0, 0), counts);
     m_copcVlr.root_hier_offset = root.offset;
     m_copcVlr.root_hier_size = root.byteSize;
     uint64_t endPos = m_f.tellp();
@@ -279,56 +267,6 @@ void CopcSupport::writeHierarchy(const CountMap& counts)
     lazperf::evlr_header h { 0, "copc", 1000, (endPos - beginPos), "EPT Hierarchy" };
     m_f.seekp(m_header.evlr_offset);
     h.write(m_f);
-}
-
-CopcSupport::Hierarchy CopcSupport::emitRoot(const VoxelKey& root, const CountMap& counts)
-{
-    const int LevelBreak = 4;
-    Entries entries;
-
-    int stopLevel = root.level() + LevelBreak;
-    entries.push_back({root, m_hierarchy[root]});
-    emitChildren(root, counts, entries, stopLevel);
-
-    pdal::OLeStream out(&m_f);
-    uint64_t startPos = out.position();
-    for (auto it = entries.begin(); it != entries.end(); ++it)
-    {
-        VoxelKey& key = it->first;
-        Hierarchy& h = it->second;
-        out << key.level() << key.x() << key.y() << key.z();
-        out << h.offset << h.byteSize << h.pointCount;
-    }
-    uint64_t endPos = out.position();
-
-    // This is the information about where the hierarchy node was written, to be
-    // written with the parent.
-    return { startPos, (int32_t)(endPos - startPos), -1 };
-}
-
-
-void CopcSupport::emitChildren(const VoxelKey& p, const CountMap& counts,
-    Entries& entries, int stopLevel)
-{
-    const int MinHierarchySize = 50;
-
-    for (int i = 0; i < 8; ++i)
-    {
-        VoxelKey c = p.child(i);
-        auto ci = counts.find(c);
-        if (ci != counts.end())
-        {
-            // If we're not at a stop level or the number of child nodes is less than 50,
-            // just stick them here.
-            if (c.level() != stopLevel || ci->second <= MinHierarchySize)
-            {
-                entries.push_back({c, m_hierarchy[c]});
-                emitChildren(c, counts, entries, stopLevel);
-            }
-            else
-                entries.push_back({c, emitRoot(c, counts)});
-        }
-    }
 }
 
 } // namespace bu

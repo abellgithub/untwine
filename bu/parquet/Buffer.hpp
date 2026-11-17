@@ -44,23 +44,20 @@ public:
 
     void expand()
     {
+        expand(m_end - m_start + DefaultSize);
+    }
+
+    void expand(std::size_t size)
+    {
+        if (capacity() >= size)
+            return;
+
         std::size_t used = m_pos - m_start;
-        std::size_t size = m_end - m_start + DefaultSize;
         m_start = (char *)realloc(m_start, size);
         m_end = m_start + size;
         m_pos = m_start + used;
     }
 
-    /**
-    void add(void *v, size_t size)
-    {
-        if (m_pos + size > m_end)
-            expand();
-
-        std::memcpy(m_pos, v, size);
-        m_pos += size;
-    }
-    **/
     char *getPos(size_t size)
     {
         assert(size < DefaultSize);
@@ -74,7 +71,7 @@ public:
     // Right now we just copy the data to the destination buffer.
     void compress(Buffer& dst)
     {
-        assert(dst.capacity() >= size());
+        dst.expand(size());
         std::memcpy(dst.m_start, m_start, size());
         dst.m_end = dst.m_pos = dst.m_start + size();
     }

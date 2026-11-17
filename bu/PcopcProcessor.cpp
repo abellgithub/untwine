@@ -77,7 +77,6 @@ flush:
 void PcopcProcessor::flushCompressed(RowGroup& rowGroup, const OctantInfo& o)
 {
     rowGroup.done();
-std::cerr << "Flush compressed for " << o.key() << " with num rows = " << rowGroup.numRows() << "!\n";
     int64_t position = m_manager.newChunk(o.key(), rowGroup.compressedTotalSize(),
         rowGroup.numRows());
     rowGroup.write(m_file, position);
